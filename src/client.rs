@@ -37,12 +37,16 @@ fn map_list_type(list_type: &str) -> ListType {
 
 fn map_webhook_event_type(event_type: &str) -> WebhookEventType {
     match event_type.to_lowercase().as_str() {
-        "connectionrequestsent" | "connection_request_sent" => {
+        "connectionrequestsent" | "connection_request_sent" | "connection-request-sent" => {
             WebhookEventType::ConnectionRequestSent
         }
-        "connectionaccepted" | "connection_accepted" => WebhookEventType::ConnectionAccepted,
-        "messagesent" | "message_sent" => WebhookEventType::MessageSent,
-        "messagereplied" | "message_replied" => WebhookEventType::MessageReplied,
+        "connectionaccepted" | "connection_accepted" | "connection-accepted" => {
+            WebhookEventType::ConnectionAccepted
+        }
+        "messagesent" | "message_sent" | "message-sent" => WebhookEventType::MessageSent,
+        "messagereplied" | "message_replied" | "message-replied" => {
+            WebhookEventType::MessageReplied
+        }
         _ => WebhookEventType::Unknown,
     }
 }
@@ -65,6 +69,8 @@ fn convert_progress_stats(dto: ProgressStatsDto) -> ProgressStats {
         total_users_pending: dto.total_users_pending,
         total_users_finished: dto.total_users_finished,
         total_users_failed: dto.total_users_failed,
+        total_users_manually_stopped: dto.total_users_manually_stopped,
+        total_users_excluded: dto.total_users_excluded,
     }
 }
 
@@ -84,14 +90,11 @@ fn convert_campaign_summary(dto: CampaignSummaryDto) -> CampaignSummary {
         exclude_first_connection_global: dto.exclude_first_connection_global,
         exclude_no_profile_picture: dto.exclude_no_profile_picture,
         exclude_list_id: dto.exclude_list_id,
-    }
-}
-
-fn convert_page_info(dto: PageInfoDto) -> PageInfo {
-    PageInfo {
-        offset: dto.offset,
-        limit: dto.limit,
-        total_count: dto.total_count,
+        exclude_in_other_campaigns: dto.exclude_in_other_campaigns,
+        exclude_has_other_acc_conversations: dto.exclude_has_other_acc_conversations,
+        exclude_contacted_from_sender_in_other_campaign: dto
+            .exclude_contacted_from_sender_in_other_campaign,
+        organization_unit_id: dto.organization_unit_id,
     }
 }
 
@@ -172,8 +175,9 @@ pub fn campaigns_get_all(api_key: &str, filter: CampaignFilter) -> Result<Campai
         Some(&filter_dto),
     )?;
 
+    // ✅ FIXED: API returns {totalCount, items} directly, NOT {page, items}
     Ok(CampaignPage {
-        page: convert_page_info(response.page),
+        total_count: response.total_count,
         items: response
             .items
             .into_iter()
@@ -283,8 +287,9 @@ pub fn lists_get_all(api_key: &str, filter: ListGetAllFilter) -> Result<ListPage
         Some(&filter_dto),
     )?;
 
+    // ✅ FIXED: API returns {totalCount, items} directly, NOT {page, items}
     Ok(ListPage {
-        page: convert_page_info(response.page),
+        total_count: response.total_count,
         items: response
             .items
             .into_iter()
@@ -339,8 +344,9 @@ pub fn lists_get_leads(
         Some(&request_dto),
     )?;
 
+    // ✅ FIXED: API returns {totalCount, items} directly
     Ok(ListLeadsPage {
-        page: convert_page_info(response.page),
+        total_count: response.total_count,
         items: response.items.into_iter().map(convert_lead_dto).collect(),
     })
 }
@@ -452,8 +458,9 @@ pub fn lead_get_lists(
         Some(&request_dto),
     )?;
 
+    // ✅ FIXED: API returns {totalCount, items} directly
     Ok(LeadListsResponse {
-        page: convert_page_info(response.page),
+        total_count: response.total_count,
         items: response
             .items
             .into_iter()
@@ -529,8 +536,9 @@ pub fn inbox_get_conversations_v2(
         Some(&request_dto),
     )?;
 
+    // ✅ FIXED: API returns {totalCount, items} directly
     Ok(InboxConversationPage {
-        page: convert_page_info(response.page),
+        total_count: response.total_count,
         items: response
             .items
             .into_iter()
@@ -581,17 +589,25 @@ pub fn li_account_get_all(
     )?;
 
     Ok(LiAccountPage {
-        page: convert_page_info(response.page),
+        total_count: response.total_count,
         items: response
             .items
             .into_iter()
             .map(|dto| LiAccountSummary {
                 id: dto.id,
-                name: dto.name,
+                email_address: dto.email_address,
+                first_name: dto.first_name,
+                last_name: dto.last_name,
+                is_active: dto.is_active,
+                active_campaigns: dto.active_campaigns,
+                auth_is_valid: dto.auth_is_valid,
+                is_valid_navigator: dto.is_valid_navigator,
+                is_valid_recruiter: dto.is_valid_recruiter,
             })
             .collect(),
     })
 }
+
 
 // -------- Webhooks --------
 
@@ -655,8 +671,9 @@ pub fn webhooks_get_all(api_key: &str, filter: GetWebhooksFilter) -> Result<Webh
         Some(&filter_dto),
     )?;
 
+    // ✅ FIXED: API returns {totalCount, items} directly
     Ok(WebhookPage {
-        page: convert_page_info(response.page),
+        total_count: response.total_count,
         items: response
             .items
             .into_iter()

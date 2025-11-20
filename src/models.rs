@@ -27,10 +27,15 @@ pub struct CampaignFilterDto {
 #[serde(rename_all = "camelCase")]
 pub struct ProgressStatsDto {
     pub total_users: u32,
-    pub total_users_in_progress: u32,
+    pub total_users_in_progress: i32, // ✅ Changed from u32 to i32 (can be negative!)
     pub total_users_pending: u32,
     pub total_users_finished: u32,
     pub total_users_failed: u32,
+    // ✅ Added missing fields from API response
+    #[serde(default)]
+    pub total_users_manually_stopped: u32,
+    #[serde(default)]
+    pub total_users_excluded: u32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -46,17 +51,36 @@ pub struct CampaignSummaryDto {
     pub campaign_account_ids: Vec<u32>,
     pub status: String,
     pub progress_stats: Option<ProgressStatsDto>,
-    pub exclude_already_messaged_global: Option<bool>,
-    pub exclude_already_messaged_campaign_accounts: Option<bool>,
-    pub exclude_first_connection_campaign_accounts: Option<bool>,
-    pub exclude_first_connection_global: Option<bool>,
-    pub exclude_no_profile_picture: Option<bool>,
+
+    // ✅ These fields exist in actual API response
+    #[serde(default)]
+    pub exclude_in_other_campaigns: bool,
+    #[serde(default)]
+    pub exclude_has_other_acc_conversations: bool,
+    #[serde(default)]
+    pub exclude_contacted_from_sender_in_other_campaign: bool,
     pub exclude_list_id: Option<u64>,
+    #[serde(default)]
+    pub organization_unit_id: Option<u64>,
+
+    // Keep old optional fields for backward compatibility
+    #[serde(skip_serializing)]
+    pub exclude_already_messaged_global: Option<bool>,
+    #[serde(skip_serializing)]
+    pub exclude_already_messaged_campaign_accounts: Option<bool>,
+    #[serde(skip_serializing)]
+    pub exclude_first_connection_campaign_accounts: Option<bool>,
+    #[serde(skip_serializing)]
+    pub exclude_first_connection_global: Option<bool>,
+    #[serde(skip_serializing)]
+    pub exclude_no_profile_picture: Option<bool>,
 }
 
+// ✅ FIXED: API returns {totalCount, items}, NOT {page, items}
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CampaignPageDto {
-    pub page: PageInfoDto,
+    pub total_count: u32, // ✅ Direct field from API response
     pub items: Vec<CampaignSummaryDto>,
 }
 
@@ -134,15 +158,19 @@ pub struct ListSummaryDto {
     pub campaign_ids: Vec<u64>,
 }
 
+// ✅ FIXED: API returns {totalCount, items}, NOT {page, items}
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ListPageDto {
-    pub page: PageInfoDto,
+    pub total_count: u32, // ✅ Direct field from API response
     pub items: Vec<ListSummaryDto>,
 }
 
+// ✅ FIXED: API returns {totalCount, items}, NOT {page, items}
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ListLeadsPageDto {
-    pub page: PageInfoDto,
+    pub total_count: u32, // ✅ Direct field from API response
     pub items: Vec<LeadDto>,
 }
 
@@ -211,9 +239,11 @@ pub struct LeadListSummaryDto {
     pub list_name: String,
 }
 
+// ✅ FIXED: API returns {totalCount, items}, NOT {page, items}
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LeadListsResponseDto {
-    pub page: PageInfoDto,
+    pub total_count: u32, // ✅ Direct field from API response
     pub items: Vec<LeadListSummaryDto>,
 }
 
@@ -267,16 +297,20 @@ pub struct InboxGetConversationsRequestDto {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InboxConversationSummaryDto {
+    #[serde(rename = "id")]  
     pub conversation_id: String,
     pub linked_in_account_id: u32,
     pub lead_profile_url: Option<String>,
     pub last_message_snippet: Option<String>,
+    #[serde(rename = "read")]
     pub seen: bool,
 }
 
+// ✅ FIXED: API returns {totalCount, items}, NOT {page, items}
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct InboxConversationPageDto {
-    pub page: PageInfoDto,
+    pub total_count: u32, // ✅ Direct field from API response
     pub items: Vec<InboxConversationSummaryDto>,
 }
 
@@ -286,6 +320,7 @@ pub struct InboxSendMessageRequestDto {
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subject: Option<String>,
+    #[serde(rename = "id")]  
     pub conversation_id: String,
     pub linked_in_account_id: u32,
 }
@@ -302,14 +337,30 @@ pub struct LiAccountFilterDto {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LiAccountSummaryDto {
     pub id: u32,
-    pub name: String,
+    pub email_address: String,
+    pub first_name: String,
+    pub last_name: String,
+    #[serde(default)]
+    pub is_active: bool,
+    #[serde(default)]
+    pub active_campaigns: u32,
+    #[serde(default)]
+    pub auth_is_valid: bool,
+    #[serde(default)]
+    pub is_valid_navigator: bool,
+    #[serde(default)]
+    pub is_valid_recruiter: bool,
 }
 
+
+// ✅ FIXED: API returns {totalCount, items}, NOT {page, items}
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LiAccountPageDto {
-    pub page: PageInfoDto,
+    pub total_count: u32, // ✅ Direct field from API response
     pub items: Vec<LiAccountSummaryDto>,
 }
 
@@ -343,8 +394,10 @@ pub struct GetWebhooksFilterDto {
     pub limit: u32,
 }
 
+// ✅ FIXED: API returns {totalCount, items}, NOT {page, items}
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WebhookPageDto {
-    pub page: PageInfoDto,
+    pub total_count: u32, // ✅ Direct field from API response
     pub items: Vec<WebhookDto>,
 }

@@ -18,7 +18,7 @@ pub fn make_request<T: DeserializeOwned>(
     body: Option<&impl Serialize>,
 ) -> Result<T, ApiError> {
     println!("[DEBUG] make_request called - path: {}", path);
-    
+
     let headers = Fields::new();
 
     println!("[DEBUG] Creating headers...");
@@ -29,7 +29,10 @@ pub fn make_request<T: DeserializeOwned>(
         )
         .map_err(|e| {
             println!("[ERROR] Failed to append content-type header: {:?}", e);
-            api_error(ApiErrorCode::Unknown, "failed to append content-type header")
+            api_error(
+                ApiErrorCode::Unknown,
+                "failed to append content-type header",
+            )
         })?;
 
     headers
@@ -46,14 +49,12 @@ pub fn make_request<T: DeserializeOwned>(
         HttpMethod::Post => Method::Post,
         HttpMethod::Delete => Method::Delete,
     };
-    
+
     println!("[DEBUG] Setting method: {:?}", method_value);
-    outgoing_request
-        .set_method(&method_value)
-        .map_err(|e| {
-            println!("[ERROR] Failed to set method: {:?}", e);
-            api_error(ApiErrorCode::Unknown, "Failed to set method")
-        })?;
+    outgoing_request.set_method(&method_value).map_err(|e| {
+        println!("[ERROR] Failed to set method: {:?}", e);
+        api_error(ApiErrorCode::Unknown, "Failed to set method")
+    })?;
 
     println!("[DEBUG] Setting path: {}", path);
     outgoing_request
@@ -91,19 +92,15 @@ pub fn make_request<T: DeserializeOwned>(
 
         println!("[DEBUG] Body size: {} bytes", body_bytes.len());
 
-        let outgoing_body = outgoing_request
-            .body()
-            .map_err(|e| {
-                println!("[ERROR] Failed to get outgoing body: {:?}", e);
-                api_error(ApiErrorCode::Unknown, "Failed to get outgoing body")
-            })?;
+        let outgoing_body = outgoing_request.body().map_err(|e| {
+            println!("[ERROR] Failed to get outgoing body: {:?}", e);
+            api_error(ApiErrorCode::Unknown, "Failed to get outgoing body")
+        })?;
 
-        let body_stream = outgoing_body
-            .write()
-            .map_err(|e| {
-                println!("[ERROR] Failed to get body stream: {:?}", e);
-                api_error(ApiErrorCode::Unknown, "Failed to get body stream")
-            })?;
+        let body_stream = outgoing_body.write().map_err(|e| {
+            println!("[ERROR] Failed to get body stream: {:?}", e);
+            api_error(ApiErrorCode::Unknown, "Failed to get body stream")
+        })?;
 
         println!("[DEBUG] Writing body...");
         body_stream
@@ -114,21 +111,19 @@ pub fn make_request<T: DeserializeOwned>(
             })?;
 
         drop(body_stream);
-        OutgoingBody::finish(outgoing_body, None)
-            .map_err(|e| {
-                println!("[ERROR] Failed to finish body: {:?}", e);
-                api_error(ApiErrorCode::Unknown, "Failed to finish body")
-            })?;
+        OutgoingBody::finish(outgoing_body, None).map_err(|e| {
+            println!("[ERROR] Failed to finish body: {:?}", e);
+            api_error(ApiErrorCode::Unknown, "Failed to finish body")
+        })?;
     } else {
         println!("[DEBUG] No body to send");
     }
 
     println!("[DEBUG] Sending request...");
-    let future_response = outgoing_handler::handle(outgoing_request, None)
-        .map_err(|e| {
-            println!("[ERROR] Failed to send request: {:?}", e);
-            api_error(ApiErrorCode::Unknown, "Failed to send request")
-        })?;
+    let future_response = outgoing_handler::handle(outgoing_request, None).map_err(|e| {
+        println!("[ERROR] Failed to send request: {:?}", e);
+        api_error(ApiErrorCode::Unknown, "Failed to send request")
+    })?;
 
     println!("[DEBUG] Waiting for response...");
     future_response.subscribe().block();
@@ -153,20 +148,16 @@ pub fn make_request<T: DeserializeOwned>(
     println!("[DEBUG] Response status: {}", status);
 
     println!("[DEBUG] Getting response body...");
-    let incoming_body = incoming_response
-        .consume()
-        .map_err(|e| {
-            println!("[ERROR] Failed to get response body: {:?}", e);
-            api_error(ApiErrorCode::Unknown, "Failed to get response body")
-        })?;
+    let incoming_body = incoming_response.consume().map_err(|e| {
+        println!("[ERROR] Failed to get response body: {:?}", e);
+        api_error(ApiErrorCode::Unknown, "Failed to get response body")
+    })?;
 
     println!("[DEBUG] Getting body stream...");
-    let body_stream = incoming_body
-        .stream()
-        .map_err(|e| {
-            println!("[ERROR] Failed to get body stream: {:?}", e);
-            api_error(ApiErrorCode::Unknown, "Failed to get body stream")
-        })?;
+    let body_stream = incoming_body.stream().map_err(|e| {
+        println!("[ERROR] Failed to get body stream: {:?}", e);
+        api_error(ApiErrorCode::Unknown, "Failed to get body stream")
+    })?;
 
     let mut response_bytes = Vec::new();
     println!("[DEBUG] Reading response chunks...");
@@ -193,7 +184,7 @@ pub fn make_request<T: DeserializeOwned>(
 
     println!("[DEBUG] Total response bytes: {}", response_bytes.len());
     drop(body_stream);
-    
+
     if status >= 400 {
         println!("[DEBUG] Error status code detected: {}", status);
         let error_code = match status {
@@ -227,15 +218,14 @@ pub fn make_request<T: DeserializeOwned>(
     }
 
     println!("[DEBUG] Converting response to UTF-8...");
-    let response_text = String::from_utf8(response_bytes)
-        .map_err(|e| {
-            println!("[ERROR] Invalid UTF-8 in response: {:?}", e);
-            api_error(ApiErrorCode::Unknown, "Invalid UTF-8 in response")
-        })?;
+    let response_text = String::from_utf8(response_bytes).map_err(|e| {
+        println!("[ERROR] Invalid UTF-8 in response: {:?}", e);
+        api_error(ApiErrorCode::Unknown, "Invalid UTF-8 in response")
+    })?;
 
     println!("[DEBUG] Response text: '{}'", response_text);
     println!("[DEBUG] Parsing JSON...");
-    
+
     serde_json::from_str(&response_text).map_err(|e| {
         println!("[ERROR] Failed to parse response JSON: {}", e);
         println!("[ERROR] Response was: '{}'", response_text);
@@ -253,7 +243,7 @@ pub fn make_request_empty(
     body: Option<&impl Serialize>,
 ) -> Result<(), ApiError> {
     println!("[DEBUG] make_request_empty called - path: {}", path);
-    
+
     let headers = Fields::new();
 
     println!("[DEBUG] Creating headers...");
@@ -264,7 +254,10 @@ pub fn make_request_empty(
         )
         .map_err(|e| {
             println!("[ERROR] Failed to append content-type header: {:?}", e);
-            api_error(ApiErrorCode::Unknown, "failed to append content-type header")
+            api_error(
+                ApiErrorCode::Unknown,
+                "failed to append content-type header",
+            )
         })?;
 
     headers
@@ -281,14 +274,12 @@ pub fn make_request_empty(
         HttpMethod::Post => Method::Post,
         HttpMethod::Delete => Method::Delete,
     };
-    
+
     println!("[DEBUG] Setting method: {:?}", method_value);
-    outgoing_request
-        .set_method(&method_value)
-        .map_err(|e| {
-            println!("[ERROR] Failed to set method: {:?}", e);
-            api_error(ApiErrorCode::Unknown, "Failed to set method")
-        })?;
+    outgoing_request.set_method(&method_value).map_err(|e| {
+        println!("[ERROR] Failed to set method: {:?}", e);
+        api_error(ApiErrorCode::Unknown, "Failed to set method")
+    })?;
 
     println!("[DEBUG] Setting path: {}", path);
     outgoing_request
@@ -326,19 +317,15 @@ pub fn make_request_empty(
 
         println!("[DEBUG] Body size: {} bytes", body_bytes.len());
 
-        let outgoing_body = outgoing_request
-            .body()
-            .map_err(|e| {
-                println!("[ERROR] Failed to get outgoing body: {:?}", e);
-                api_error(ApiErrorCode::Unknown, "Failed to get outgoing body")
-            })?;
+        let outgoing_body = outgoing_request.body().map_err(|e| {
+            println!("[ERROR] Failed to get outgoing body: {:?}", e);
+            api_error(ApiErrorCode::Unknown, "Failed to get outgoing body")
+        })?;
 
-        let body_stream = outgoing_body
-            .write()
-            .map_err(|e| {
-                println!("[ERROR] Failed to get body stream: {:?}", e);
-                api_error(ApiErrorCode::Unknown, "Failed to get body stream")
-            })?;
+        let body_stream = outgoing_body.write().map_err(|e| {
+            println!("[ERROR] Failed to get body stream: {:?}", e);
+            api_error(ApiErrorCode::Unknown, "Failed to get body stream")
+        })?;
 
         println!("[DEBUG] Writing body...");
         body_stream
@@ -349,21 +336,19 @@ pub fn make_request_empty(
             })?;
 
         drop(body_stream);
-        OutgoingBody::finish(outgoing_body, None)
-            .map_err(|e| {
-                println!("[ERROR] Failed to finish body: {:?}", e);
-                api_error(ApiErrorCode::Unknown, "Failed to finish body")
-            })?;
+        OutgoingBody::finish(outgoing_body, None).map_err(|e| {
+            println!("[ERROR] Failed to finish body: {:?}", e);
+            api_error(ApiErrorCode::Unknown, "Failed to finish body")
+        })?;
     } else {
         println!("[DEBUG] No body to send");
     }
 
     println!("[DEBUG] Sending request...");
-    let future_response = outgoing_handler::handle(outgoing_request, None)
-        .map_err(|e| {
-            println!("[ERROR] Failed to send request: {:?}", e);
-            api_error(ApiErrorCode::Unknown, "Failed to send request")
-        })?;
+    let future_response = outgoing_handler::handle(outgoing_request, None).map_err(|e| {
+        println!("[ERROR] Failed to send request: {:?}", e);
+        api_error(ApiErrorCode::Unknown, "Failed to send request")
+    })?;
 
     println!("[DEBUG] Waiting for response...");
     future_response.subscribe().block();
@@ -390,21 +375,17 @@ pub fn make_request_empty(
     // Check status first before trying to read body
     if status >= 400 {
         println!("[DEBUG] Error status code detected: {}", status);
-        
-        // Try to read error body
-        let incoming_body = incoming_response
-            .consume()
-            .map_err(|e| {
-                println!("[ERROR] Failed to get response body: {:?}", e);
-                api_error(ApiErrorCode::Unknown, "Failed to get response body")
-            })?;
 
-        let body_stream = incoming_body
-            .stream()
-            .map_err(|e| {
-                println!("[ERROR] Failed to get body stream: {:?}", e);
-                api_error(ApiErrorCode::Unknown, "Failed to get body stream")
-            })?;
+        // Try to read error body
+        let incoming_body = incoming_response.consume().map_err(|e| {
+            println!("[ERROR] Failed to get response body: {:?}", e);
+            api_error(ApiErrorCode::Unknown, "Failed to get response body")
+        })?;
+
+        let body_stream = incoming_body.stream().map_err(|e| {
+            println!("[ERROR] Failed to get body stream: {:?}", e);
+            api_error(ApiErrorCode::Unknown, "Failed to get body stream")
+        })?;
 
         let mut response_bytes = Vec::new();
         loop {
@@ -416,7 +397,7 @@ pub fn make_request_empty(
         }
 
         drop(body_stream);
-        
+
         let error_code = match status {
             401 => ApiErrorCode::Unauthorized,
             404 => ApiErrorCode::NotFound,
@@ -451,7 +432,7 @@ pub fn make_request_empty(
     // Just consume it to clean up resources, but ignore any errors
     println!("[DEBUG] Success status, consuming body (but ignoring content)...");
     let _ = incoming_response.consume();
-    
+
     println!("[DEBUG] Success! Returning Ok(())");
     Ok(())
 }
