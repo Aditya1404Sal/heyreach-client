@@ -1,6 +1,7 @@
 use crate::exports::heyreach::client::api::{ApiError, ApiErrorCode};
 use crate::wasi::http::outgoing_handler;
 use crate::wasi::http::types::*;
+use crate::wasi::io::streams::StreamError;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
@@ -170,19 +171,24 @@ pub fn make_request<T: DeserializeOwned>(
     let mut response_bytes = Vec::new();
     println!("[DEBUG] Reading response chunks...");
     loop {
-        let chunk = body_stream
-            .blocking_read(8192)
-            .map_err(|e| {
+        match body_stream.blocking_read(8192) {
+            Ok(chunk) => {
+                if chunk.is_empty() {
+                    println!("[DEBUG] Finished reading response");
+                    break;
+                }
+                println!("[DEBUG] Read chunk of {} bytes", chunk.len());
+                response_bytes.extend_from_slice(&chunk);
+            }
+            Err(StreamError::Closed) => {
+                println!("[DEBUG] Stream closed (end of response)");
+                break;
+            }
+            Err(e) => {
                 println!("[ERROR] Failed to read response chunk: {:?}", e);
-                api_error(ApiErrorCode::Unknown, "Failed to read response")
-            })?;
-
-        if chunk.is_empty() {
-            println!("[DEBUG] Finished reading response");
-            break;
+                return Err(api_error(ApiErrorCode::Unknown, "Failed to read response"));
+            }
         }
-        println!("[DEBUG] Read chunk of {} bytes", chunk.len());
-        response_bytes.extend_from_slice(&chunk);
     }
 
     println!("[DEBUG] Total response bytes: {}", response_bytes.len());
