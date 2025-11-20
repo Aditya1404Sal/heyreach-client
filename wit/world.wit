@@ -1,0 +1,487 @@
+package heyreach:client;
+
+
+/// ------------------------
+/// Main client interface
+/// ------------------------
+
+interface api {
+
+    /// Generic error mapping the common HTTP errors from the HeyReach API.
+    enum api-error-code {
+      unauthorized,
+      not-found,
+      too-many-requests,
+      bad-request,
+      validation,
+      rate-limited,
+      unknown,
+    }
+
+    record api-error {
+      code: api-error-code,
+      /// Human-readable error message (can be taken from `detail` / `errorMessage`).
+      message: string,
+    }
+
+    /// Pagination info used in many responses.
+    record page-info {
+      offset: u32,
+      limit: u32,
+      total-count: u32,
+    }
+
+    /// ------------------------
+    /// Campaigns
+    /// ------------------------
+
+    enum campaign-status {
+      draft,
+      active,
+      paused,
+      finished,
+      canceled,
+      unknown,
+    }
+
+    record progress-stats {
+      total-users: u32,
+      total-users-in-progress: u32,
+      total-users-pending: u32,
+      total-users-finished: u32,
+      total-users-failed: u32,
+    }
+
+    record campaign-summary {
+      id: u64,
+      name: string,
+      creation-time: string,              // ISO-8601
+      linkedin-user-list-name: option<string>,
+      linkedin-user-list-id: option<u64>,
+      campaign-account-ids: list<u32>,
+      status: campaign-status,
+      progress-stats: option<progress-stats>,
+      exclude-already-messaged-global: option<bool>,
+      exclude-already-messaged-campaign-accounts: option<bool>,
+      exclude-first-connection-campaign-accounts: option<bool>,
+      exclude-first-connection-global: option<bool>,
+      exclude-no-profile-picture: option<bool>,
+      exclude-list-id: option<u64>,
+    }
+
+    record campaign-page {
+      page: page-info,
+      items: list<campaign-summary>,
+    }
+
+    record campaign-filter {
+      offset: u32,
+      limit: u32,
+      keyword: option<string>,
+      statuses: list<campaign-status>,
+      account-ids: list<u32>,
+    }
+
+    /// Custom fields for leads.
+    record custom-user-field {
+      name: string,
+      value: string,
+    }
+
+    /// Lead as used in campaign/list endpoints.
+    record lead {
+      first-name: string,
+      last-name: string,
+      profile-url: string,
+      location: option<string>,
+      summary: option<string>,
+      company-name: option<string>,
+      position: option<string>,
+      about: option<string>,
+      email-address: option<string>,
+      custom-user-fields: list<custom-user-field>,
+    }
+
+    /// Pair of LinkedIn account and lead for campaign import.
+    record account-lead-pair {
+      linked-in-account-id: option<u32>,
+      lead: lead,
+    }
+
+    record campaign-add-leads-request {
+      campaign-id: u64,
+      account-lead-pairs: list<account-lead-pair>,
+    }
+
+    /// V2 add-leads result (added/updated/failed).
+    record campaign-add-leads-v2-result {
+      added-leads-count: u32,
+      updated-leads-count: u32,
+      failed-leads-count: u32,
+    }
+
+    /// ------------------------
+    /// Lists
+    /// ------------------------
+
+    enum list-type {
+      leads,
+      companies,
+      unknown,
+    }
+
+    record list-summary {
+      id: u64,
+      name: string,
+      total-items-count: u32,
+      list-type: list-type,
+      creation-time: string,
+      campaign-ids: list<u64>,
+    }
+
+    record list-page {
+      page: page-info,
+      items: list<list-summary>,
+    }
+
+    record list-get-all-filter {
+      offset: u32,
+      limit: u32,
+      keyword: option<string>,
+    }
+
+    /// A page of leads for a list.
+    record list-leads-page {
+      page: page-info,
+      items: list<lead>,
+    }
+
+    /// Delete by internal membership ids.
+    record list-lead-delete-request {
+      list-id: u64,
+      lead-member-ids: list<string>,
+    }
+
+    /// Delete by profile URLs.
+    record list-lead-delete-by-profile-url-request {
+      list-id: u64,
+      profile-urls: list<string>,
+    }
+
+    record list-lead-delete-by-profile-url-response {
+      not-found-in-list: list<string>,
+    }
+
+    /// ------------------------
+    /// Lead / Tags
+    /// ------------------------
+
+    record lead-get-request {
+      profile-url: string,
+    }
+
+    /// Lists for a lead.
+    record lead-lists-request {
+      email: option<string>,
+      linkedin-id: option<string>,
+      profile-url: option<string>,
+      offset: u32,
+      limit: u32,
+    }
+
+    record lead-list-summary {
+      list-id: u64,
+      list-name: string,
+    }
+
+    record lead-lists-response {
+      page: page-info,
+      items: list<lead-list-summary>,
+    }
+
+    record lead-tags-response {
+      tags: list<string>,
+    }
+
+    record lead-replace-tags-request {
+      lead-profile-url: option<string>,
+      lead-linked-in-id: option<string>,
+      tags: list<string>,
+      create-tag-if-not-existing: bool,
+    }
+
+    record lead-replace-tags-response {
+      new-assigned-tags: list<string>,
+    }
+
+    /// ------------------------
+    /// Inbox
+    /// ------------------------
+
+    record inbox-filters {
+      linked-in-account-ids: list<u32>,
+      campaign-ids: list<u64>,
+      search-string: option<string>,
+      lead-linked-in-id: option<string>,
+      lead-profile-url: option<string>,
+      seen: option<bool>,
+    }
+
+    record inbox-get-conversations-request {
+      filters: inbox-filters,
+      offset: u32,
+      limit: u32,
+    }
+
+    record inbox-conversation-summary {
+      conversation-id: string,
+      linked-in-account-id: u32,
+      lead-profile-url: option<string>,
+      last-message-snippet: option<string>,
+      seen: bool,
+    }
+
+    record inbox-conversation-page {
+      page: page-info,
+      items: list<inbox-conversation-summary>,
+    }
+
+    record inbox-send-message-request {
+      message: string,
+      subject: option<string>,
+      conversation-id: string,
+      linked-in-account-id: u32,
+    }
+
+    /// ------------------------
+    /// LinkedIn Accounts
+    /// ------------------------
+
+    record li-account-filter {
+      offset: u32,
+      limit: u32,
+      keyword: option<string>,
+    }
+
+    record li-account-summary {
+      id: u32,
+      name: string,
+    }
+
+    record li-account-page {
+      page: page-info,
+      items: list<li-account-summary>,
+    }
+
+    /// ------------------------
+    /// Webhooks
+    /// ------------------------
+
+    enum webhook-event-type {
+      connection-request-sent,
+      connection-accepted,
+      message-sent,
+      message-replied,
+      unknown,
+    }
+
+    record webhook {
+      id: u64,
+      webhook-name: string,
+      webhook-url: string,
+      event-type: webhook-event-type,
+      campaign-ids: list<u64>,
+      is-active: bool,
+    }
+
+    record create-webhook-request {
+      webhook-name: string,
+      webhook-url: string,
+      event-type: webhook-event-type,
+      campaign-ids: list<u64>,
+      is-active: bool,
+    }
+
+    record get-webhooks-filter {
+      offset: u32,
+      limit: u32,
+    }
+
+    record webhook-page {
+      page: page-info,
+      items: list<webhook>,
+    }
+  // -------- Auth --------
+
+  /// GET /api/public/auth/CheckApiKey
+  check-api-key: func(api-key: string) -> result<_, api-error>;
+
+  // -------- Campaigns --------
+
+  /// POST /api/public/campaign/GetAll
+  campaigns-get-all: func(
+    api-key: string,
+    filter: campaign-filter
+  ) -> result<campaign-page, api-error>;
+
+  /// GET /api/public/campaign/GetById
+  campaigns-get-by-id: func(
+    api-key: string,
+    campaign-id: u64
+  ) -> result<campaign-summary, api-error>;
+
+  /// POST /api/public/campaign/Resume
+  campaigns-resume: func(
+    api-key: string,
+    campaign-id: u64
+  ) -> result<_, api-error>;
+
+  /// POST /api/public/campaign/Pause
+  campaigns-pause: func(
+    api-key: string,
+    campaign-id: u64
+  ) -> result<_, api-error>;
+
+  /// POST /api/public/campaign/AddLeadsToCampaign
+  ///
+  /// Returns the raw integer returned by the API (sample shows "0").
+  campaigns-add-leads: func(
+    api-key: string,
+    payload: campaign-add-leads-request
+  ) -> result<u32, api-error>;
+
+  /// POST /api/public/campaign/AddLeadsToCampaignV2
+  campaigns-add-leads-v2: func(
+    api-key: string,
+    payload: campaign-add-leads-request
+  ) -> result<campaign-add-leads-v2-result, api-error>;
+
+  // -------- Lists --------
+
+  /// POST /api/public/list/GetAll
+  lists-get-all: func(
+    api-key: string,
+    filter: list-get-all-filter
+  ) -> result<list-page, api-error>;
+
+  /// GET /api/public/list/GetById
+  lists-get-by-id: func(
+    api-key: string,
+    list-id: u64
+  ) -> result<list-summary, api-error>;
+
+  /// POST /api/public/list/GetLeadsFromList
+  lists-get-leads: func(
+    api-key: string,
+    list-id: u64,
+    offset: u32,
+    limit: u32,
+    keyword: option<string>
+  ) -> result<list-leads-page, api-error>;
+
+  /// POST /api/public/list/AddLeadsToList
+  lists-add-leads: func(
+    api-key: string,
+    list-id: u64,
+    leads: list<lead>
+  ) -> result<_, api-error>;
+
+  /// POST /api/public/list/AddLeadsToListV2
+  lists-add-leads-v2: func(
+    api-key: string,
+    list-id: u64,
+    leads: list<lead>
+  ) -> result<campaign-add-leads-v2-result, api-error>;
+
+  /// DELETE /api/public/list/DeleteLeadsFromList
+  lists-delete-leads: func(
+    api-key: string,
+    request: list-lead-delete-request
+  ) -> result<_, api-error>;
+
+  /// DELETE /api/public/list/DeleteLeadsFromListByProfileUrl
+  lists-delete-leads-by-profile-url: func(
+    api-key: string,
+    request: list-lead-delete-by-profile-url-request
+  ) -> result<list-lead-delete-by-profile-url-response, api-error>;
+
+  // -------- Lead & Tags --------
+
+  /// POST /api/public/lead/GetLead
+  lead-get: func(
+    api-key: string,
+    profile-url: string
+  ) -> result<lead, api-error>;
+
+  /// POST /api/public/list/GetListsForLead
+  lead-get-lists: func(
+    api-key: string,
+    request: lead-lists-request
+  ) -> result<lead-lists-response, api-error>;
+
+  /// POST /api/public/lead/GetTags
+  lead-get-tags: func(
+    api-key: string,
+    profile-url: string
+  ) -> result<lead-tags-response, api-error>;
+
+  /// POST /api/public/lead/ReplaceTags
+  lead-replace-tags: func(
+    api-key: string,
+    request: lead-replace-tags-request
+  ) -> result<lead-replace-tags-response, api-error>;
+
+  // -------- Inbox --------
+
+  /// POST /api/public/inbox/GetConversationsV2
+  inbox-get-conversations-v2: func(
+    api-key: string,
+    request: inbox-get-conversations-request
+  ) -> result<inbox-conversation-page, api-error>;
+
+  /// POST /api/public/inbox/SendMessage
+  inbox-send-message: func(
+    api-key: string,
+    request: inbox-send-message-request
+  ) -> result<_, api-error>;
+
+  // -------- LinkedIn Accounts --------
+
+  /// POST /api/public/li_account/GetAll
+  li-account-get-all: func(
+    api-key: string,
+    filter: li-account-filter
+  ) -> result<li-account-page, api-error>;
+
+  // -------- Webhooks --------
+
+  /// POST /api/public/webhooks/CreateWebhook
+  webhooks-create: func(
+    api-key: string,
+    request: create-webhook-request
+  ) -> result<webhook, api-error>;
+
+  /// GET /api/public/webhooks/GetWebhookById
+  webhooks-get-by-id: func(
+    api-key: string,
+    webhook-id: u64
+  ) -> result<webhook, api-error>;
+
+  /// POST /api/public/webhooks/GetAllWebhooks
+  webhooks-get-all: func(
+    api-key: string,
+    filter: get-webhooks-filter
+  ) -> result<webhook-page, api-error>;
+
+  /// DELETE /api/public/webhooks/DeleteWebhook
+  webhooks-delete: func(
+    api-key: string,
+    webhook-id: u64
+  ) -> result<_, api-error>;
+}
+
+/// World exporting the single client interface.
+world heyreach-client {
+  import wasi:http/outgoing-handler@0.2.2;
+  export api;
+}
